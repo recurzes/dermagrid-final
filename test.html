@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .success { color: green; }
+        .error { color: red; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>XAMPP MySQL Connection Test</h1>
+    <button id="testBtn">Test Connection</button>
+    <div>
+        <h3>Results:</h3>
+        <pre id="result">Click the button to test</pre>
+        <h3>Raw Response:</h3>
+        <pre id="rawResponse"></pre>
+    </div>
+
+    <script>
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('result');
+            const rawDiv = document.getElementById('rawResponse');
+            
+            try {
+                // Fetch the response
+                const response = await fetch('http://localhost:8000/db_test.php');
+                
+                // Show the raw text first (for debugging)
+                const rawText = await response.text();
+                rawDiv.textContent = rawText;
+                
+                // Try to parse it as JSON
+                let data;
+                try {
+                    data = JSON.parse(rawText);
+                    resultDiv.textContent = "JSON parsed successfully: " + 
+                                           JSON.stringify(data, null, 2);
+                } catch (parseError) {
+                    resultDiv.textContent = "JSON parse error: " + parseError.message;
+                }
+            } catch (error) {
+                resultDiv.textContent = "Fetch error: " + error.message;
+            }
+        });
+    </script>
+</body>
+</html>

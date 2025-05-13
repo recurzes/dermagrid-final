@@ -1,0 +1,9 @@
+0000000000000000000000000000000000000000 6052c2a2903d934d6faa9158906be7f39ba47ff4 recurzes <donlancelotknight123@gmail.com> 1747125883 +0800	clone: from https://github.com/recurzes/dermagrid.git
+6052c2a2903d934d6faa9158906be7f39ba47ff4 a32f763a58430d0af8a1dc76be3b69c4f066f7ee recurzes <donlancelotknight123@gmail.com> 1747126034 +0800	commit: feat: added something file
+a32f763a58430d0af8a1dc76be3b69c4f066f7ee 6052c2a2903d934d6faa9158906be7f39ba47ff4 recurzes <donlancelotknight123@gmail.com> 1747126329 +0800	checkout: moving from main to lance-branch
+6052c2a2903d934d6faa9158906be7f39ba47ff4 a32f763a58430d0af8a1dc76be3b69c4f066f7ee recurzes <donlancelotknight123@gmail.com> 1747126540 +0800	pull origin main: Fast-forward
+a32f763a58430d0af8a1dc76be3b69c4f066f7ee bbfebeeda5e717503a97d0a6e2ff4fa6eddd98f8 recurzes <donlancelotknight123@gmail.com> 1747126635 +0800	commit: feat: added my own file
+bbfebeeda5e717503a97d0a6e2ff4fa6eddd98f8 f46ebd21cc67ea43b3a78de9f5547f007342b925 recurzes <donlancelotknight123@gmail.com> 1747147059 +0800	commit: feat: login, book appointments and dashboard now functional and gets data from database
+f46ebd21cc67ea43b3a78de9f5547f007342b925 248ee2bd77dd63d03d3012450614f1fda3db7199 recurzes <donlancelotknight123@gmail.com> 1747149399 +0800	commit: fix: fixed stored procs missing
+248ee2bd77dd63d03d3012450614f1fda3db7199 25b23a91f4d5b551bac195fc94a0c7f0dea6a1ec recurzes <donlancelotknight123@gmail.com> 1747164712 +0800	commit: feat: crud operations working for medical records and prescriptions
+25b23a91f4d5b551bac195fc94a0c7f0dea6a1ec 0084a28f32e8911ea2ce4f89bb53de5ad89962dc recurzes <donlancelotknight123@gmail.com> 1747164813 +0800	commit (merge): something

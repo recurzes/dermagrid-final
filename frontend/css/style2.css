@@ -1,0 +1,195 @@
+.appointment {
+    justify-content: center;
+    align-items: center;
+    padding: 112px 120px;
+    display: flex;
+    text-align: center;
+}
+
+.appointment .container .column {
+    display: flex;
+    justify-content: center;
+}
+
+.appointment .column {
+    flex-direction: column;
+    gap: 80px;
+}
+
+.appointment-heading {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 30px;
+    width: 100%;
+}
+
+.appointment-intro {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 12px;
+    background-color: #F4F4F4;
+    width: 50%;
+}
+
+.optional {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    gap: 12px;
+}
+
+/* form */
+
+.form-div {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+.form-div form {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 12px;
+    width: 50%;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: start;
+}
+
+label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+input[type="text"],
+input[type="email"],
+textarea {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    background-color: #f0f6f6;
+    font-size: 16px;
+    box-sizing: border-box;
+    resize: vertical;
+}
+
+textarea {
+    height: 100px;
+}
+
+/* calendar */
+
+.calendar {
+    width: 50%;
+    background: #f3f3f3;
+    padding: 20px;
+    border-radius: 6px;
+}
+
+.calendar h2 {
+    margin-bottom: 10px;
+}
+
+.header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+select {
+    padding: 6px;
+    font-size: 16px;
+}
+
+.days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+    text-align: center;
+}
+
+.days div {
+    padding: 10px;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.days div.header {
+    font-weight: bold;
+    background: transparent;
+    cursor: default;
+}
+
+.days div.inactive {
+    color: #ccc;
+    pointer-events: none;
+}
+
+.days div.today {
+    background: #000;
+    color: #fff;
+}
+
+.days div.selected {
+    background: #000;
+    color: #fff;
+}
+
+/* time-picker */
+
+.time-picker {
+    width: 50%;
+}
+
+.time-picker h2 {
+    margin-bottom: 20px;
+}
+
+.time-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    background: #fafafa;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.time-slot {
+    background-color: #f5f5f5;
+    text-align: center;
+    padding: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s ease;
+}
+
+.time-slot:hover {
+    background-color: #e0e0e0;
+}
+
+.time-slot.selected {
+    background-color: #000;
+    color: white;
+}

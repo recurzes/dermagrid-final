@@ -1,0 +1,4 @@
+feat: crud operations working for medical records and prescriptions
+
+# Conflicts:
+#	dermagrid-final.sql
