@@ -37,7 +37,7 @@ CREATE TABLE `appointment` (
   KEY `staff_id` (`staff_id`),
   CONSTRAINT `appointment_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patient` (`id`) ON DELETE CASCADE,
   CONSTRAINT `appointment_ibfk_2` FOREIGN KEY (`staff_id`) REFERENCES `staff` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -46,7 +46,7 @@ CREATE TABLE `appointment` (
 
 LOCK TABLES `appointment` WRITE;
 /*!40000 ALTER TABLE `appointment` DISABLE KEYS */;
-INSERT INTO `appointment` VALUES (1,1,1,'2025-05-16','12:30:00','scheduled','I have stomachache',NULL,'2025-05-13 14:23:35'),(2,1,1,'2025-05-23','01:30:00','scheduled','asdasd',NULL,'2025-05-13 18:32:34'),(3,2,1,'2025-05-30','03:30:00','scheduled','jkyjhrtghtr',NULL,'2025-05-13 18:42:12');
+INSERT INTO `appointment` VALUES (1,1,1,'2025-05-16','12:30:00','scheduled','I have stomachache',NULL,'2025-05-13 14:23:35'),(2,1,1,'2025-05-23','01:30:00','completed','asdasd',NULL,'2025-05-13 18:32:34'),(3,2,1,'2025-05-30','03:30:00','completed','jkyjhrtghtr',NULL,'2025-05-13 18:42:12'),(4,3,1,'2025-05-31','11:30:00','scheduled','I am sad',NULL,'2025-05-13 22:35:29'),(5,4,1,'2025-05-26','11:30:00','scheduled','I have headache',NULL,'2025-05-13 23:06:46');
 /*!40000 ALTER TABLE `appointment` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -81,7 +81,7 @@ CREATE TABLE `medical_record` (
   CONSTRAINT `medical_record_ibfk_2` FOREIGN KEY (`staff_id`) REFERENCES `staff` (`id`) ON DELETE CASCADE,
   CONSTRAINT `medical_record_ibfk_3` FOREIGN KEY (`appointment_id`) REFERENCES `appointment` (`id`) ON DELETE SET NULL,
   CONSTRAINT `medical_record_prescription_id_fk` FOREIGN KEY (`prescription_id`) REFERENCES `prescription` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -90,8 +90,71 @@ CREATE TABLE `medical_record` (
 
 LOCK TABLES `medical_record` WRITE;
 /*!40000 ALTER TABLE `medical_record` DISABLE KEYS */;
+INSERT INTO `medical_record` VALUES (1,2,1,NULL,'2025-05-14','Contact dermatitis, likely due to new laundry detergent','Apply topical corticosteroid cream twice daily. Avoid sun exposure for two weeks.','Raised, erythematous patches with minimal scaling. No signs of infection. Responds well to gentle touch.','2025-05-13 19:25:26',1,'Itchy, red rash on forearms persisting for 10 days','sensitive','Wash affected area with lukewarm water and mild soap. Apply prescribed medication after patting dry. Return in 14 days if no improvement. Avoid scratching.',NULL),(2,2,1,NULL,'2025-05-14','Contact dermatitis, likely due to new laundry detergent','Apply topical corticosteroid cream twice daily. Avoid sun exposure for two weeks.','Raised, erythematous patches with minimal scaling. No signs of infection. Responds well to gentle touch.','2025-05-13 19:59:13',1,'Itchy, red rash on forearms persisting for 10 days','sensitive','Wash affected area with lukewarm water and mild soap. Apply prescribed medication after patting dry. Return in 14 days if no improvement. Avoid scratching.',NULL),(3,2,1,NULL,'2025-05-30','fghrthkjy','dfhgterhreh','tikjghkghjyk','2025-05-13 20:26:29',1,'dfhrhrth','dry','8otyjxdfghdrt',NULL),(4,3,1,NULL,'2025-05-31','Contact dermatitis','Apply hydrocortisone cream to affected areas','Erythematous plaques with excoriations; no signs of infection.','2025-05-13 22:38:54',3,'Itchy, red rash on forearms','sensitive','Avoid known irritants, use mild soap, moisturize daily.',NULL),(5,3,1,NULL,'2025-05-31','Mild intermittent asthmazaza','Start inhaler therapy and breathing exercises','Scattered wheezes on auscultation; no distress at rest.','2025-05-14 00:24:41',3,'Shortness of breath and wheezing','dry','Use inhaler at first sign of wheezing; practice pursed-lip breathing.','../uploads/medical/6823e2c9d774f_445880397_1849820535484914_7536483239264901788_n.jpg');
 /*!40000 ALTER TABLE `medical_record` ENABLE KEYS */;
 UNLOCK TABLES;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'IGNORE_SPACE,NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER if not exists check_medical_record_patient_match_insert
+    BEFORE INSERT ON medical_record
+    FOR EACH ROW
+BEGIN
+    DECLARE prescription_patient_id INT;
+
+    IF NEW.prescription_id IS NOT NULL THEN
+        SELECT patient_id INTO prescription_patient_id
+        FROM prescription
+        WHERE id = NEW.prescription_id;
+
+        IF prescription_patient_id IS NOT NULL AND prescription_patient_id != NEW.patient_id THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'The prescription belongs to a different patient';
+        END IF;
+    END IF;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'IGNORE_SPACE,NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER if not exists check_medical_record_patient_match_update
+    BEFORE UPDATE ON medical_record
+    FOR EACH ROW
+BEGIN
+    DECLARE prescription_patient_id INT;
+
+    IF NEW.prescription_id IS NOT NULL THEN
+        SELECT patient_id INTO prescription_patient_id
+        FROM prescription
+        WHERE id = NEW.prescription_id;
+
+        IF prescription_patient_id IS NOT NULL AND prescription_patient_id != NEW.patient_id THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'The prescription belongs to a different patient';
+        END IF;
+    END IF;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 
 --
 -- Table structure for table `patient`
@@ -111,7 +174,7 @@ CREATE TABLE `patient` (
   `address` text DEFAULT NULL,
   `registration_date` date DEFAULT curdate(),
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -120,7 +183,7 @@ CREATE TABLE `patient` (
 
 LOCK TABLES `patient` WRITE;
 /*!40000 ALTER TABLE `patient` DISABLE KEYS */;
-INSERT INTO `patient` VALUES (1,'Van Renzo','Clarin',NULL,NULL,'v.clarin.137890.tc@umindanao.edu.ph','09700651307',NULL,'2025-05-13'),(2,'Lance','Limbaro',NULL,NULL,'donlancelotknight123@gmail.com','09700651307',NULL,'2025-05-14');
+INSERT INTO `patient` VALUES (1,'Van Renzo','Clarin',NULL,NULL,'v.clarin.137890.tc@umindanao.edu.ph','09700651307',NULL,'2025-05-13'),(2,'Lance','Limbaro',NULL,NULL,'donlancelotknight123@gmail.com','09700651307',NULL,'2025-05-14'),(3,'Test','Patient',NULL,NULL,'patient@email.com','09700651307',NULL,'2025-05-14'),(4,'Another','Test',NULL,NULL,'another@test.com','09700651307',NULL,'2025-05-14');
 /*!40000 ALTER TABLE `patient` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -149,7 +212,7 @@ CREATE TABLE `prescription` (
   KEY `staff_id` (`staff_id`),
   CONSTRAINT `prescription_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patient` (`id`) ON DELETE CASCADE,
   CONSTRAINT `prescription_ibfk_2` FOREIGN KEY (`staff_id`) REFERENCES `staff` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -158,6 +221,7 @@ CREATE TABLE `prescription` (
 
 LOCK TABLES `prescription` WRITE;
 /*!40000 ALTER TABLE `prescription` DISABLE KEYS */;
+INSERT INTO `prescription` VALUES (1,1,1,'Triamcinolone Acetonide Cream','2','twice daily','14 Days','Take 2 tab(s) twice daily After\r\n                                                meal. Apply a thin layer to affected areas. Do not cover with bandages unless directed by your doctor.','active','2025-05-13 19:16:25','tab(s)','Apply a thin layer to affected areas. Do not cover with bandages unless directed by your doctor.'),(2,2,1,'Amoxicillin','3','every 8 hours','10 Days','Take 3 tab(s) every 8 hours After\r\n                                                meal. Finish the full course even if you feel better.','active','2025-05-13 21:08:03','tab(s)','Finish the full course even if you feel better.'),(3,3,1,'Lisinopril','1','once daily','30 Days','Take 1 tab(s) once daily Before\r\n                                                meal. Monitor blood pressure daily and record readings.','active','2025-05-13 22:37:50','tab(s)','Monitor blood pressure daily and record readings.');
 /*!40000 ALTER TABLE `prescription` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -676,6 +740,41 @@ DELIMITER ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'IGNORE_SPACE,NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `GetAppointmentById` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `GetAppointmentById`(IN p_id INT)
+BEGIN
+    SELECT
+        a.id,
+        CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+        p.phone AS contact_number,
+        p.email,
+        CONCAT(s.first_name, ' ', s.last_name) AS doctor_name,
+        a.appointment_date,
+        a.appointment_time,
+        a.status,
+        a.reason,
+        a.created_at AS booked_on
+    FROM
+        appointment a
+            INNER JOIN patient p ON a.patient_id = p.id
+            INNER JOIN staff s ON a.staff_id = s.id
+    WHERE
+        a.id = p_id;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'IGNORE_SPACE,NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `GetAppointments` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -755,22 +854,25 @@ DELIMITER ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `GetAppointmentsByPatient`(
-    IN p_patient_id INT
-)
+CREATE DEFINER=`root`@`localhost` PROCEDURE `GetAppointmentsByPatient`(IN p_patient_id int)
 BEGIN
     SELECT
         a.id,
-        CONCAT(s.first_name, ' ', s.last_name) AS staff_name,
+        CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+        p.phone AS contact_number,
+        p.email,
+        CONCAT(s.first_name, ' ', s.last_name) AS doctor_name,
         a.appointment_date,
         a.appointment_time,
         a.status,
         a.reason,
-        a.notes
-    FROM appointment a
-             JOIN staff s ON a.staff_id = s.id
-    WHERE a.patient_id = p_patient_id
-    ORDER BY a.appointment_date DESC, a.appointment_time DESC;
+        a.created_at AS booked_on
+    FROM
+        appointment a
+            INNER JOIN patient p ON a.patient_id = p.id
+            INNER JOIN staff s ON a.staff_id = s.id
+    WHERE
+        a.id = p_patient_id;
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -884,6 +986,36 @@ DELIMITER ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'IGNORE_SPACE,NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `GetMedicalRecordDetailsById` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `GetMedicalRecordDetailsById`(IN p_id int)
+BEGIN
+    SELECT
+        mr.*,
+        CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+        CONCAT(s.first_name, ' ', s.last_name) AS doctor_name,
+        pr.medication_name AS prescription_name
+    FROM
+        medical_record mr
+            JOIN patient p ON mr.patient_id = p.id
+            JOIN staff s ON mr.staff_id = s.id
+            LEFT JOIN prescription pr ON mr.prescription_id = pr.id
+    WHERE
+        mr.id = p_id;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'IGNORE_SPACE,NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `GetMedicalRecordsByPatient` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -908,6 +1040,38 @@ BEGIN
              JOIN staff s ON mr.staff_id = s.id
     WHERE mr.patient_id = p_patient_id
     ORDER BY mr.visit_date DESC;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'IGNORE_SPACE,NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `GetMedicalRecordWithPrescriptionById` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `GetMedicalRecordWithPrescriptionById`(
+    IN p_id INT
+)
+BEGIN
+    SELECT
+        mr.*,
+        CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+        CONCAT(s.first_name, ' ', s.last_name) AS doctor_name,
+        pr.medication_name AS prescription_name
+    FROM
+        medical_record mr
+            JOIN patient p ON mr.patient_id = p.id
+            JOIN staff s ON mr.staff_id = s.id
+            LEFT JOIN prescription pr ON mr.prescription_id = pr.id
+    WHERE
+        mr.id = p_id;
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -1447,43 +1611,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
--- Dump completed on 2025-05-13 23:15:56
-
-DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `GetAppointmentById`(
-    IN p_id INT
-)
-BEGIN
-    SELECT
-        a.id,
-        CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
-        p.phone AS contact_number,
-        p.email,
-        CONCAT(s.first_name, ' ', s.last_name) AS doctor_name,
-        a.appointment_date,
-        a.appointment_time,
-        a.status,
-        a.reason,
-        a.created_at AS booked_on
-    FROM
-        appointment a
-            INNER JOIN
-        patient p ON a.patient_id = p.id
-            INNER JOIN
-        staff s ON a.staff_id = s.id
-    WHERE
-        a.id = p_id;
-END ;;
-DELIMITER ;
-=======
--- Dump completed on 2025-05-14  3:10:54
->>>>>>> 25b23a9 (feat: crud operations working for medical records and prescriptions)
-=======
--- Dump completed on 2025-05-14  3:10:54
->>>>>>> aad0d2d3b15ed6ea96e8b27a005b8a11c07744e7
-=======
--- Dump completed on 2025-05-14  3:10:54
->>>>>>> aad0d2d3b15ed6ea96e8b27a005b8a11c07744e7
+-- Dump completed on 2025-05-15  7:47:46

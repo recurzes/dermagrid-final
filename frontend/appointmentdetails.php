@@ -10,73 +10,121 @@ $appointments = [];
 $history = [];
 $latestByPatient = [];
 
-// Get the contact number from the URL (sanitize it)
-$contact_number = isset($_GET['contact']) ? $_GET['contact'] : null;
+// Get appointment ID from URL
+$appointment_id = isset($_GET['id']) ? (int)$_GET['id'] : null;
+$contact_number = $_GET['contact_number'] ?? null;
 
-$file = "appointments.txt";
+// Initialize database models
+$database = getDbConnection();
+$appointmentModel = new Appointment($database);
+$patientModel = new Patient($database); // Assuming you have a Patient model
 
-if (file_exists($file)) {
-    $lines = file($file, FILE_IGNORE_NEW_LINES);
-    foreach ($lines as $index => $line) {
-        $fields = explode("|", $line);
-        if (count($fields) >= 10) {
-            // Use patient contact as the key for each unique patient
-            $key = $fields[2];
-
-            if ($contact_number && $key !== $contact_number) {
-                continue;  // Skip if the contact doesn't match
-            }
-
-            $appointment = [
-                'index' => $index,
-                'first_name' => $fields[0],   // First name
-                'last_name' => $fields[1],    // Last name
-                'contact' => $fields[2],      // Contact number
-                'email' => $fields[3],        // Email address
-                'appointment_date' => $fields[4],   // Appointment date
-                'appointment_time' => $fields[5],   // Appointment time
-                'doctor' => $fields[6],       // Doctor's name
-                'reason' => $fields[8],       // Reason for appointment
-                'booked_on' => $fields[9],    // Date when the appointment was booked
-                'raw' => $line,               // Raw line from file
-                'status' => 'Upcoming'        // Default status
-            ];
-
-            // Update status based on appointment date
-            $appointmentDate = strtotime($appointment['appointment_date']);
-            $currentDate = strtotime(date('Y-m-d'));
-
-            if ($appointmentDate < $currentDate) {
-                $appointment['status'] = 'Completed';
-            } else if ($appointmentDate == $currentDate) {
-                $appointment['status'] = 'Today';
-            } else {
-                $appointment['status'] = 'Upcoming';
-            }
-
-            // Check if this is the most recent appointment for this patient
-            if (!isset($latestByPatient[$key]) || strtotime($appointment['booked_on']) > strtotime($latestByPatient[$key]['booked_on'])) {
-                // If this is the latest appointment, move the previous one to history
-                if (isset($latestByPatient[$key])) {
-                    $history[] = $latestByPatient[$key];
+if ($contact_number) {
+    // If viewing by contact number, get the patient first
+    $patients = $patientModel->searchByPhone($contact_number);
+    
+    if (!empty($patients)) {
+        $patient_id = $patients[0]['id'];
+        
+        // Get all appointments for this patient
+        $allAppointments = $appointmentModel->getByPatient($patient_id);
+        
+        if (!empty($allAppointments)) {
+            // Process each appointment
+            foreach ($allAppointments as $appt) {
+                $processed = [
+                    'id' => $appt['id'],
+                    'first_name' => explode(' ', $appt['patient_name'])[0] ?? '',
+                    'last_name' => explode(' ', $appt['patient_name'])[1] ?? '',
+                    'contact_number' => $appt['contact_number'] ?? '',
+                    'email' => $appt['email'] ?? '',
+                    'appointment_date' => $appt['appointment_date'],
+                    'appointment_time' => $appt['appointment_time'],
+                    'doctor' => $appt['doctor_name'] ?? '',
+                    'reason' => $appt['reason'] ?? '',
+                    'booked_on' => $appt['created_at'] ?? '',
+                    'status' => $appt['status']
+                ];
+                
+                // Normalize status
+                if ($processed['status'] == 'completed') {
+                    $processed['status'] = 'Completed';
+                } else if (date('Y-m-d') == $processed['appointment_date']) {
+                    $processed['status'] = 'Today';
+                } else if ($processed['status'] == 'scheduled') {
+                    $processed['status'] = 'Upcoming';
                 }
-                $latestByPatient[$key] = $appointment; // This appointment becomes the most recent
-            } else {
-                // This is not the latest, so add it to history
-                $history[] = $appointment;
+                
+                // Add to appointments or history
+                if (count($appointments) == 0) {
+                    $appointments[] = $processed;
+                } else {
+                    $history[] = $processed;
+                }
             }
+            
+            // Sort history by date
+            usort($history, function($a, $b) {
+                $dateA = strtotime($a['appointment_date'] . ' ' . $a['appointment_time']);
+                $dateB = strtotime($b['appointment_date'] . ' ' . $b['appointment_time']);
+                return $dateB - $dateA; // Descending order
+            });
         }
     }
-
-    // Now $appointments holds the latest appointment per patient
-    $appointments = array_values($latestByPatient);
-
-    // Sort history array by appointment date and time in descending order
-    usort($history, function ($a, $b) {
-        $dateA = strtotime($a['appointment_date'] . ' ' . $a['appointment_time']);
-        $dateB = strtotime($b['appointment_date'] . ' ' . $b['appointment_time']);
-        return $dateB - $dateA; // Descending order (latest first)
-    });
+} else if ($appointment_id) {
+    // If viewing by appointment ID, just get that appointment
+    $appointment = $appointmentModel->getById($appointment_id);
+    
+    if ($appointment) {
+        // Add to appointments array in the same format
+        $appointments[] = [
+            'id' => $appointment['id'],
+            'first_name' => explode(' ', $appointment['patient_name'])[0] ?? '',
+            'last_name' => explode(' ', $appointment['patient_name'])[1] ?? '',
+            'contact' => $appointment['contact_number'] ?? '',
+            'email' => $appointment['email'] ?? '',
+            'appointment_date' => $appointment['appointment_date'],
+            'appointment_time' => $appointment['appointment_time'],
+            'doctor' => $appointment['doctor_name'] ?? '',
+            'reason' => $appointment['reason'] ?? '',
+            'booked_on' => $appointment['created_at'] ?? '',
+            'status' => ucfirst($appointment['status'] ?? 'Upcoming')
+        ];
+        
+        // Get patient ID from the appointment
+        $patient_id = $appointment['patient_id'] ?? null;
+        
+        // Get patient's appointment history
+        if ($patient_id) {
+            $patientAppointments = $appointmentModel->getByPatient($patient_id);
+            
+            foreach ($patientAppointments as $appt) {
+                // Skip the current appointment
+                if ($appt['id'] != $appointment_id) {
+                    $history[] = [
+                        'id' => $appt['id'],
+                        'first_name' => explode(' ', $appt['patient_name'])[0] ?? '',
+                        'last_name' => explode(' ', $appt['patient_name'])[1] ?? '',
+                        'contact' => $appt['contact_number'] ?? '',
+                        'email' => $appt['email'] ?? '',
+                        'appointment_date' => $appt['appointment_date'],
+                        'appointment_time' => $appt['appointment_time'],
+                        'doctor' => $appt['doctor_name'] ?? '',
+                        'reason' => $appt['reason'] ?? '',
+                        'booked_on' => $appt['created_at'] ?? '',
+                        'status' => ucfirst($appt['status'] ?? 'Upcoming')
+                    ];
+                }
+            }
+            
+            // Sort history
+            usort($history, function($a, $b) {
+                $dateA = strtotime($a['appointment_date'] . ' ' . $a['appointment_time']);
+                $dateB = strtotime($b['appointment_date'] . ' ' . $b['appointment_time']);
+                return $dateB - $dateA;
+            });
+        }
+    }
 }
 
 // Get appointment ID from URL
