@@ -5,7 +5,7 @@
 const DB_HOST = 'localhost';
 const DB_NAME = 'dermagrid';
 const DB_USER = 'root';
-const DB_PASS = '';
+const DB_PASS = '1234';
 
 // Create connection 
 function getDbConnection() {

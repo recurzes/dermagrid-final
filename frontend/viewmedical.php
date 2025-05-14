@@ -1,67 +1,157 @@
 <?php
+require_once '../backend/config/database.php';
+require_once '../backend/models/MedicalRecord.php';
+
 $record_id = isset($_GET['record']) ? (int)$_GET['record'] : -1;
-$file = "medical_data.txt";
+$parsed = [];
+$debug_record = null; // For debugging
+$message = '';
+$error = '';
 
-$parsed = [
-    'patient_name' => '',
-    'doctor' => '',
-    'booked_on' => '',
-    'recommended_treatment' => '',
-    'prescriptions_given' => '',
-    'diagnosis' => '',
-    'treatment' => '',
-    'chief_complaint' => '',
-    'skin_type' => '',
-    'clinical_notes' => '',
-    'instructions' => '',
-    'saved_on' => '',
-];
+// Initialize database connection and models
+$database = getDbConnection();
+$medicalRecordModel = new MedicalRecord($database);
 
-if ($record_id >= 0 && file_exists($file)) {
-    $records = file($file, FILE_IGNORE_NEW_LINES);
-    if (isset($records[$record_id])) {
-        $line = $records[$record_id];
+// Handle form submission for updates
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_record'])) {
+    // Get form data
+    $updateData = [
+        'patient_id' => $_POST['patient_id'] ?? null,
+        'staff_id' => $_POST['staff_id'] ?? null,
+        'visit_date' => $_POST['visit_date'] ?? null,
+        'diagnosis' => $_POST['diagnosis'] ?? null,
+        'treatment_plan' => $_POST['treatment_plan'] ?? null,
+        'notes' => $_POST['clinical_notes'] ?? null,
+        'chief_complaint' => $_POST['chief_complaint'] ?? null,
+        'skin_type' => $_POST['skin_type'] ?? null,
+        'instructions' => $_POST['instructions'] ?? null,
+    ];
+    
+    // Handle the appointment_id - if it's empty or invalid, set to NULL
+    $appointment_id = $_POST['appointment_id'] ?? null;
+    if (!empty($appointment_id) && is_numeric($appointment_id)) {
+        $updateData['appointment_id'] = $appointment_id;
+    } else {
+        $updateData['appointment_id'] = null;
+    }
+    
+    // Handle the prescription_id - if it's empty or invalid, set to NULL
+    $prescription_id = $_POST['prescription_id'] ?? null;
+    if (!empty($prescription_id) && is_numeric($prescription_id)) {
+        $updateData['prescription_id'] = $prescription_id;
+    } else {
+        $updateData['prescription_id'] = null;
+    }
 
-        // Extract all relevant fields
-        preg_match('/Patient:\s*(.*?)\s*\|/', $line . ' |', $m1);
-        $parsed['patient_name'] = $m1[1] ?? '';
+    // Handle image update if a new one is uploaded
+    if (isset($_FILES['image_file']) && $_FILES['image_file']['size'] > 0) {
+        $uploadDir = '../uploads/medical/';
+        
+        // Create the directory if it doesn't exist
+        if (!file_exists($uploadDir)) {
+            if (!mkdir($uploadDir, 0777, true)) {
+                $error = "Failed to create upload directory.";
+            }
+        }
+        
+        $file = $_FILES['image_file'];
+        
+        // Debug info
+        error_log("Uploading file: " . $file['name'] . ", size: " . $file['size'] . ", type: " . $file['type']);
+        
+        // Validate file
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+        $maxSize = 5 * 1024 * 1024; // 5MB
+        
+        if (in_array($file['type'], $allowedTypes) && $file['size'] <= $maxSize) {
+            // Generate unique filename
+            $filename = uniqid() . '_' . basename($file['name']);
+            $targetFile = $uploadDir . $filename;
+            
+            // Upload file
+            if (move_uploaded_file($file['tmp_name'], $targetFile)) {
+                $updateData['image_path'] = $targetFile;
+                error_log("File uploaded successfully to: " . $targetFile);
+            } else {
+                $error = "Failed to upload file. PHP Error: " . error_get_last()['message'];
+                error_log("Failed to upload file: " . error_get_last()['message']);
+            }
+        } else {
+            if (!in_array($file['type'], $allowedTypes)) {
+                $error = "Invalid file type. Please upload JPEG, PNG, or GIF.";
+            } else {
+                $error = "File size exceeds 5MB limit.";
+            }
+        }
+    }
 
-        preg_match('/Doctor:\s*(.*?)\s*\|/', $line . ' |', $m2);
-        $parsed['doctor'] = $m2[1] ?? '';
-
-        preg_match('/Appointment Date:\s*(.*?)\s*\|/', $line . ' |', $m3);
-        $parsed['booked_on'] = $m3[1] ?? '';
-
-        preg_match('/Recommended Treatment:\s*(.*?)\s*\|/', $line . ' |', $m4);
-        $parsed['recommended_treatment'] = $m4[1] ?? '';
-
-        preg_match('/Prescriptions Given:\s*(.*?)\s*\|/', $line . ' |', $m5);
-        $parsed['prescriptions_given'] = $m5[1] ?? '';
-
-        preg_match('/Diagnosis:\s*(.*?)\s*\|/', $line . ' |', $m6);
-        $parsed['diagnosis'] = $m6[1] ?? '';
-
-        preg_match('/Treatment:\s*(.*?)\s*\|/', $line . ' |', $m7);
-        $parsed['treatment'] = $m7[1] ?? '';
-
-        preg_match('/Chief Complaint:\s*(.*?)\s*\|/', $line . ' |', $m8);
-        $parsed['chief_complaint'] = $m8[1] ?? '';
-
-        preg_match('/Skin Type:\s*(.*?)\s*\|/', $line . ' |', $m9);
-        $parsed['skin_type'] = $m9[1] ?? '';
-
-        preg_match('/Clinical Notes:\s*(.*?)\s*\|/', $line . ' |', $m10);
-        $parsed['clinical_notes'] = $m10[1] ?? '';
-
-        preg_match('/Instructions:\s*(.*?)\s*\|/', $line . ' |', $m11);
-        $parsed['instructions'] = $m11[1] ?? '';
-
-        preg_match('/Saved On:\s*(.*)/', $line, $m12);
-        $parsed['saved_on'] = $m12[1] ?? '';
+    // Update the record
+    try {
+        $result = $medicalRecordModel->update($record_id, $updateData);
+        
+        if ($result['success']) {
+            $message = "Medical record updated successfully.";
+        } else {
+            $error = "Error updating record: " . ($result['error'] ?? "Unknown error");
+        }
+    } catch (Exception $e) {
+        $error = "Error: " . $e->getMessage();
     }
 }
-?>
 
+// Fetch medical record from database
+try {
+    $record = $medicalRecordModel->getById($record_id);
+    $debug_record = $record; // Store for debugging
+    
+    if (!$record) {
+        // Record not found
+        $error = "Medical record not found";
+    } else {
+        // Map database fields to view/edit fields
+        $parsed = [
+            'patient_id' => $record['patient_id'] ?? '',
+            'staff_id' => $record['staff_id'] ?? '',
+            'appointment_id' => $record['appointment_id'] ?? '',
+            'prescription_id' => $record['prescription_id'] ?? '',
+            'patient_name' => $record['patient_name'] ?? '',
+            'doctor' => $record['doctor_name'] ?? '',
+            'booked_on' => $record['visit_date'] ?? '',
+            'recommended_treatment' => $record['treatment_plan'] ?? '',
+            'prescriptions_given' => $record['prescription_name'] ?? '',
+            'diagnosis' => $record['diagnosis'] ?? '',
+            'treatment' => $record['treatment_plan'] ?? '',
+            'chief_complaint' => $record['chief_complaint'] ?? '',
+            'skin_type' => $record['skin_type'] ?? '',
+            'clinical_notes' => $record['notes'] ?? '',
+            'instructions' => $record['instructions'] ?? '',
+            'saved_on' => $record['created_at'] ?? '',
+            'image_path' => $record['image_path'] ?? ''
+        ];
+    }
+} catch (Exception $e) {
+    $error = $e->getMessage();
+}
+
+// Uncomment for debugging
+// echo '<pre>Database Record: '; print_r($debug_record); echo '</pre>';
+// echo '<pre>Parsed Record: '; print_r($parsed); echo '</pre>';
+
+// Get patient ID from request or record
+$patient_id = $_GET['patient_id'] ?? $record['patient_id'] ?? null;
+
+// Get prescriptions for this patient only
+$prescriptions = [];
+if ($patient_id) {
+    $stmt = $database->prepare("SELECT id, medication_name FROM prescription WHERE patient_id = ?");
+    $stmt->execute([$patient_id]);
+    $prescriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// Check if we're in edit mode
+$edit_mode = isset($_GET['edit']) && $_GET['edit'] == '1';
+
+?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -138,10 +228,21 @@ if ($record_id >= 0 && file_exists($file)) {
             background-color: #d1d5db;
             border-radius: 3px;
         }
+
+        /* Add a style for edit mode */
+        .edit-mode-controls {
+            display: none;
+        }
+        .edit-mode .edit-mode-controls {
+            display: block;
+        }
+        .edit-mode .view-mode-controls {
+            display: none;
+        }
     </style>
 </head>
 
-<body id="page-top">
+<body id="page-top" class="<?= $edit_mode ? 'edit-mode' : '' ?>">
 
     <!-- Page Wrapper -->
     <div id="wrapper">
@@ -360,67 +461,151 @@ if ($record_id >= 0 && file_exists($file)) {
                         <!-- Content Column -->
                         <div class="col">
                             <main class="container-fluid">
-                                <p class="text-muted small mb-1">Viewing Record</p>
+                                <p class="text-muted small mb-1"><?= $edit_mode ? 'Editing' : 'Viewing' ?> Record</p>
                                 <h1 class="h5 fw-bold border-bottom border-dark pb-2 mb-4">Medical Record Details</h1>
 
-                                <div class="row g-4">
-                                    <!-- Basic Info -->
-                                    <div class="col-12 col-md-4">
-                                        <h2 class="h6 fw-semibold border-bottom pb-1 mb-3">Basic Info</h2>
-                                        <div class="mb-3">
-                                            <label class="form-label small fw-semibold">Patient Name</label>
-                                            <input type="text" class="form-control form-control-sm" value="<?= htmlspecialchars($parsed['patient_name']) ?>" readonly>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label small fw-semibold">Date of Visit</label>
-                                            <input type="text" class="form-control form-control-sm" value="<?= htmlspecialchars($parsed['booked_on']) ?>" readonly>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label small fw-semibold">Doctor/Staff Name</label>
-                                            <input type="text" class="form-control form-control-sm" value="<?= htmlspecialchars($parsed['doctor']) ?>" readonly>
-                                        </div>
-                                        <h2 class="h6 fw-semibold border-bottom pb-1 mb-3">Treatment Plan</h2>
-                                        <div class="mb-3">
-                                            <label class="form-label small fw-semibold">Recommended Treatment</label>
-                                            <textarea class="form-control form-control-sm" rows="3" readonly><?= htmlspecialchars($parsed['treatment']) ?></textarea>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label small fw-semibold">Prescriptions Given</label>
-                                            <input type="text" class="form-control form-control-sm" value="<?= htmlspecialchars($parsed['prescriptions_given']) ?>" readonly>
-                                        </div>
-                                    </div>
-
-                                    <!-- Consultation Details -->
-                                    <div class="col-12 col-md-4">
-                                        <h2 class="h6 fw-semibold border-bottom pb-1 mb-3">Consultation Details</h2>
-                                        <div class="mb-3">
-                                            <label class="form-label small fw-semibold">Chief Complaint</label>
-                                            <input type="text" class="form-control form-control-sm" value="<?= htmlspecialchars($parsed['chief_complaint']) ?>" readonly>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label small fw-semibold">Diagnosis</label>
-                                            <textarea class="form-control form-control-sm" rows="3" readonly><?= htmlspecialchars($parsed['diagnosis']) ?></textarea>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label small fw-semibold">Skin Type</label>
-                                            <input type="text" class="form-control form-control-sm" value="<?= htmlspecialchars($parsed['skin_type']) ?>" readonly>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label small fw-semibold">Clinical Notes / Observations</label>
-                                            <textarea class="form-control form-control-sm" rows="3" readonly><?= htmlspecialchars($parsed['clinical_notes']) ?></textarea>
-                                        </div>
-                                        <h2 class="h6 fw-semibold border-bottom pb-1 mb-3">Follow Up Info</h2>
-                                        <div class="mb-3">
-                                            <label class="form-label small fw-semibold">Instructions to Patient</label>
-                                            <textarea class="form-control form-control-sm" rows="3" readonly><?= htmlspecialchars($parsed['instructions']) ?></textarea>
-                                        </div>
-                                    </div>
-                                </div>
+                                <?php if (!empty($message)): ?>
+                                <div class="alert alert-success"><?= htmlspecialchars($message) ?></div>
+                                <?php endif; ?>
                                 
+                                <?php if (!empty($error)): ?>
+                                <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+                                <?php endif; ?>
+                                
+                                <form action="viewmedical.php?record=<?= $record_id ?>&edit=1" method="post" enctype="multipart/form-data">
+                                    <!-- Add hidden fields for IDs -->
+                                    <input type="hidden" name="patient_id" value="<?= htmlspecialchars($parsed['patient_id']) ?>">
+                                    <input type="hidden" name="staff_id" value="<?= htmlspecialchars($parsed['staff_id']) ?>">
+                                    <input type="hidden" name="appointment_id" value="<?= htmlspecialchars($parsed['appointment_id']) ?>">
+                                    <input type="hidden" name="prescription_id" value="<?= htmlspecialchars($parsed['prescription_id']) ?>">
+                                    <input type="hidden" name="visit_date" value="<?= htmlspecialchars($parsed['booked_on']) ?>">
+                                    
+                                    <div class="row g-4">
+                                        <!-- Basic Info -->
+                                        <div class="col-12 col-md-4">
+                                            <h2 class="h6 fw-semibold border-bottom pb-1 mb-3">Basic Info</h2>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-semibold">Patient Name</label>
+                                                <input type="text" class="form-control form-control-sm" value="<?= htmlspecialchars($parsed['patient_name']) ?>" readonly>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-semibold">Date of Visit</label>
+                                                <input type="text" class="form-control form-control-sm" value="<?= htmlspecialchars($parsed['booked_on']) ?>" readonly>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-semibold">Doctor/Staff Name</label>
+                                                <input type="text" class="form-control form-control-sm" value="<?= htmlspecialchars($parsed['doctor']) ?>" readonly>
+                                            </div>
+                                            <h2 class="h6 fw-semibold border-bottom pb-1 mb-3">Treatment Plan</h2>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-semibold">Recommended Treatment</label>
+                                                <textarea class="form-control form-control-sm" name="treatment_plan" rows="3" <?= $edit_mode ? '' : 'readonly' ?>><?= htmlspecialchars($parsed['treatment']) ?></textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-semibold">Prescriptions Given</label>
+                                                <input type="text" class="form-control form-control-sm" value="<?= htmlspecialchars($parsed['prescriptions_given']) ?>" readonly>
+                                            </div>
+                                        </div>
 
-                                <a href="javascript:history.go(-1)" class="btn btn-primary mt-4">
-                                    <i class="fas fa-arrow-left"></i> Back to Records
-                                </a>
+                                        <!-- Consultation Details -->
+                                        <div class="col-12 col-md-4">
+                                            <h2 class="h6 fw-semibold border-bottom pb-1 mb-3">Consultation Details</h2>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-semibold">Chief Complaint</label>
+                                                <input type="text" name="chief_complaint" class="form-control form-control-sm" value="<?= htmlspecialchars($parsed['chief_complaint']) ?>" <?= $edit_mode ? '' : 'readonly' ?>>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-semibold">Diagnosis</label>
+                                                <textarea class="form-control form-control-sm" name="diagnosis" rows="3" <?= $edit_mode ? '' : 'readonly' ?>><?= htmlspecialchars($parsed['diagnosis']) ?></textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-semibold">Skin Type</label>
+                                                <?php if ($edit_mode): ?>
+                                                <select name="skin_type" class="form-select form-select-sm">
+                                                    <option value="oily" <?= $parsed['skin_type'] == 'oily' ? 'selected' : '' ?>>Oily</option>
+                                                    <option value="dry" <?= $parsed['skin_type'] == 'dry' ? 'selected' : '' ?>>Dry</option>
+                                                    <option value="combination" <?= $parsed['skin_type'] == 'combination' ? 'selected' : '' ?>>Combination</option>
+                                                    <option value="sensitive" <?= $parsed['skin_type'] == 'sensitive' ? 'selected' : '' ?>>Sensitive</option>
+                                                </select>
+                                                <?php else: ?>
+                                                <input type="text" class="form-control form-control-sm" value="<?= htmlspecialchars($parsed['skin_type']) ?>" readonly>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-semibold">Clinical Notes / Observations</label>
+                                                <textarea class="form-control form-control-sm" name="clinical_notes" rows="3" <?= $edit_mode ? '' : 'readonly' ?>><?= htmlspecialchars($parsed['clinical_notes']) ?></textarea>
+                                            </div>
+                                            <h2 class="h6 fw-semibold border-bottom pb-1 mb-3">Follow Up Info</h2>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-semibold">Instructions to Patient</label>
+                                                <textarea class="form-control form-control-sm" name="instructions" rows="3" <?= $edit_mode ? '' : 'readonly' ?>><?= htmlspecialchars($parsed['instructions']) ?></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Image Display -->
+                                        <div class="col-12 col-md-4">
+                                            <h2 class="h6 fw-semibold border-bottom pb-1 mb-3">Clinical Image</h2>
+                                            <div class="card shadow">
+                                                <div class="card-body text-center">
+                                                    <?php if (!empty($parsed['image_path']) && file_exists($parsed['image_path'])): ?>
+                                                        <img src="<?= htmlspecialchars($parsed['image_path']) ?>" 
+                                                             class="img-fluid rounded" 
+                                                             alt="Clinical image"
+                                                             style="max-height: 300px;">
+                                                        <p class="small text-muted mt-2">Uploaded clinical image</p>
+                                                    <?php else: ?>
+                                                        <div class="py-5 bg-light rounded">
+                                                            <i class="fas fa-image fa-4x text-muted mb-3"></i>
+                                                            <p class="text-muted">No image available for this record</p>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                    
+                                                    <?php if ($edit_mode): ?>
+                                                    <div class="mt-3 edit-mode-controls">
+                                                        <label class="form-label small fw-semibold">Upload New Image</label>
+                                                        <input type="file" class="form-control form-control-sm" name="image_file" accept="image/*">
+                                                        <p class="small text-muted mt-1">Supported formats: JPEG, PNG, GIF</p>
+                                                    </div>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Download link if image exists -->
+                                            <?php if (!empty($parsed['image_path']) && file_exists($parsed['image_path'])): ?>
+                                            <div class="text-center mt-2">
+                                                <a href="<?= htmlspecialchars($parsed['image_path']) ?>" 
+                                                   class="btn btn-sm btn-outline-primary" 
+                                                   download>
+                                                    <i class="fas fa-download"></i> Download Image
+                                                </a>
+                                            </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Action buttons -->
+                                    <div class="mt-4">
+                                        <!-- View mode buttons -->
+                                        <div class="view-mode-controls">
+                                            <a href="javascript:history.go(-1)" class="btn btn-secondary">
+                                                <i class="fas fa-arrow-left"></i> Back to Records
+                                            </a>
+                                            <a href="viewmedical.php?record=<?= $record_id ?>&edit=1" class="btn btn-primary">
+                                                <i class="fas fa-edit"></i> Edit Record
+                                            </a>
+                                        </div>
+                                        
+                                        <!-- Edit mode buttons -->
+                                        <div class="edit-mode-controls">
+                                            <button type="submit" name="update_record" class="btn btn-success">
+                                                <i class="fas fa-save"></i> Save Changes
+                                            </button>
+                                            <a href="viewmedical.php?record=<?= $record_id ?>" class="btn btn-secondary">
+                                                <i class="fas fa-times"></i> Cancel
+                                            </a>
+                                        </div>
+                                    </div>
+                                </form>
                             </main>
                         </div>
 
@@ -490,6 +675,37 @@ if ($record_id >= 0 && file_exists($file)) {
     <!-- Page level custom scripts -->
     <script src="js/demo/chart-area-demo.js"></script>
     <script src="js/demo/chart-pie-demo.js"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const imageInput = document.querySelector('input[name="image_file"]');
+        if (imageInput) {
+            imageInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const imgElement = document.querySelector('.card-body img');
+                        if (imgElement) {
+                            imgElement.src = e.target.result;
+                            imgElement.style.display = 'block';
+                            document.querySelector('.py-5.bg-light.rounded')?.style.display = 'none';
+                        } else {
+                            const imgContainer = document.querySelector('.card-body');
+                            const newImg = document.createElement('img');
+                            newImg.src = e.target.result;
+                            newImg.classList.add('img-fluid', 'rounded');
+                            newImg.style.maxHeight = '300px';
+                            imgContainer.querySelector('.py-5.bg-light.rounded').style.display = 'none';
+                            imgContainer.prepend(newImg);
+                        }
+                    }
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+    });
+    </script>
 
 </body>
 

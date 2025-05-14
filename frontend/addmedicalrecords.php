@@ -14,6 +14,15 @@ $staffModel = new Staff($database);
 $error = '';
 $message = '';
 
+// Add this to the beginning of your form handling code (around line 17)
+$uploadDir = '../uploads/medical/';
+$image_path = null;
+
+// Create directory if it doesn't exist
+if (!file_exists($uploadDir)) {
+    mkdir($uploadDir, 0777, true);
+}
+
 // Handle form submission
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Get form data
@@ -35,29 +44,57 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $staff = $staffModel->searchByName($staff_first_name, $staff_last_name);
     $staff_id = $staff[0]['id'] ?? null;
     
+    // Handle file upload
+    if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES['image_file']) && $_FILES['image_file']['size'] > 0) {
+        $file = $_FILES['image_file'];
+        
+        // Validate file
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+        $maxSize = 5 * 1024 * 1024; // 5MB
+        
+        if (in_array($file['type'], $allowedTypes) && $file['size'] <= $maxSize) {
+            // Generate unique filename
+            $filename = uniqid() . '_' . basename($file['name']);
+            $targetFile = $uploadDir . $filename;
+            
+            // Upload file
+            if (move_uploaded_file($file['tmp_name'], $targetFile)) {
+                $image_path = $targetFile;
+            } else {
+                $error = "Failed to upload file.";
+            }
+        } else {
+            if (!in_array($file['type'], $allowedTypes)) {
+                $error = "Invalid file type. Please upload JPEG, PNG, or GIF.";
+            } else {
+                $error = "File size exceeds 5MB limit.";
+            }
+        }
+    }
+    
     // Prepare data for database
     $data = [
         'patient_id' => $patient_id,
         'staff_id' => $staff_id,
-        'appointment_id' => null, // Would need to look up appointment ID
+        'appointment_id' => null,
         'visit_date' => $appointment_date,
         'diagnosis' => $_POST['diagnosis'] ?? null,
         'treatment_plan' => $_POST['recommended_treatment'] ?? null,
         'notes' => $_POST['clinical_notes'] ?? null,
-        'prescription_id' => $_POST['prescriptions_given'] ? intval($_POST['prescriptions_given']) : null, // Would need to link to prescription
+        'prescription_id' => $_POST['prescriptions_given'] ? intval($_POST['prescriptions_given']) : null,
         'chief_complaint' => $_POST['chief_complaint'] ?? null,
         'skin_type' => $_POST['skin_type'] ?? null,
         'instructions' => $_POST['instructions'] ?? null,
-        'image_path' => null // Would handle file upload separately
+        'image_path' => $image_path
     ];
     
     // Validate required fields
     if (empty($patient_id)) {
-//        $error = "Patient not found. Please select a valid patient.";
-        $patient_id = 1; // Use the ID of Lance Limbaro from your database
+        $error = "Patient not found. Please select a valid patient.";
+//        $patient_id = 1; // Use the ID of Lance Limbaro from your database
     } elseif (empty($staff_id)) {
-//        $error = "Doctor/Staff not found. Please select a valid doctor.";
-        $staff_id = 1; // Use the ID of Lance Limbaro from your database
+        $error = "Doctor/Staff not found. Please select a valid doctor.";
+//        $staff_id = 1; // Use the ID of Lance Limbaro from your database
     } else {
         // Save the medical record
         $result = $medicalRecord->create($data);
@@ -68,6 +105,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error = "Error saving medical record: " . ($result['error'] ?? "Unknown error");
         }
     }
+
+    // Add at the top of the file where form handling is done
+    if (isset($_POST['refresh_prescriptions']) && $_POST['refresh_prescriptions'] == '1') {
+        // Just refresh the page with the new patient name set
+        $patient_name = $_POST['patient_name'] ?? '';
+        // Set the prefill data
+        $prefill['patient_name'] = $patient_name;
+        // Continue without processing the full form
+    }
 }
 
 // Get prefilled data from URL parameters
@@ -76,6 +122,31 @@ $prefill = [
     'doctor' => isset($_GET['doctor']) ? urldecode($_GET['doctor']) : '',
     'appointment_date' => isset($_GET['date']) ? urldecode($_GET['date']) : ''
 ];
+
+// Get patient ID from the patient name
+$patient_parts = explode(' ', $prefill['patient_name'], 2);
+$first_name = $patient_parts[0] ?? '';
+$last_name = $patient_parts[1] ?? '';
+
+// Make sure we're finding the exact patient
+$patients = $patientModel->searchByName($first_name, $last_name);
+$patient_id = null;
+
+// Only set patient_id if we have exactly one match to prevent wrong patient
+if (count($patients) === 1) {
+    $patient_id = $patients[0]['id'];
+    // For debugging
+    error_log("Patient found: {$patient_id} for name: {$prefill['patient_name']}");
+} else {
+    // For debugging
+    error_log("Multiple or no patients found for name: {$prefill['patient_name']}");
+}
+
+// If we found a patient, get their prescriptions
+$patientPrescriptions = [];
+if ($patient_id) {
+    $patientPrescriptions = $medicalRecord->getPrescriptionsForPatient($patient_id);
+}
 ?>
 
 <!DOCTYPE html>
@@ -364,7 +435,7 @@ $prefill = [
                                 <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
                                 <?php endif; ?>
                                 
-                                <form class="row g-4" method="post" action="">
+                                <form class="row g-4" method="post" action="" enctype="multipart/form-data">
                                     <!-- Basic Info -->
                                     <div class="col-12 col-md-4">
                                         <h2 class="h6 fw-semibold border-bottom pb-1 mb-3">Basic Info</h2>
@@ -401,19 +472,34 @@ $prefill = [
                                         </div>
                                         <div class="mb-3">
                                             <label for="prescriptionsGiven" class="form-label small fw-semibold">Prescriptions Given</label>
-                                            <div class="input-group">
-                                                <input type="text" class="form-control form-control-sm bg-light text-muted" name="prescriptions_given"
-                                                    id="prescriptionsGiven" placeholder="Enter prescription ID" 
-                                                    value="<?php echo isset($_POST['prescriptions_given']) ? htmlspecialchars($_POST['prescriptions_given']) : ''; ?>">
-                                                <a href="prescription.php" target="_blank" class="btn btn-sm btn-primary">
-                                                    Browse Prescriptions
-                                                </a>
-                                                <a href="addprescription.php?patient=<?php echo urlencode($prefill['patient_name']); ?>&doctor=<?php echo urlencode($prefill['doctor']); ?>&date=<?php echo urlencode($prefill['appointment_date']); ?>" 
-                                                   target="_blank" class="btn btn-sm btn-secondary">
-                                                    Add New Prescription
-                                                </a>
+                                            
+                                            <select class="form-select form-select-sm bg-light text-muted" name="prescriptions_given" id="prescriptionsGiven">
+                                                <option value="">-- Select a prescription --</option>
+                                                <?php foreach ($patientPrescriptions as $prescription): ?>
+                                                    <option value="<?= $prescription['id'] ?>" <?= (isset($_POST['prescriptions_given']) && $_POST['prescriptions_given'] == $prescription['id']) ? 'selected' : '' ?>>
+                                                        <?= htmlspecialchars($prescription['medication_name']) ?> 
+                                                        (<?= htmlspecialchars($prescription['dosage'] ?? '') ?>, <?= htmlspecialchars($prescription['frequency'] ?? '') ?>)
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            
+                                            <div class="mt-2">
+                                                <?php if ($patient_id): ?>
+                                                    <a href="addprescription.php?patient=<?= urlencode($prefill['patient_name']) ?>&doctor=<?= urlencode($prefill['doctor']) ?>&date=<?= urlencode($prefill['appointment_date']) ?>" 
+                                                       class="btn btn-sm btn-primary">
+                                                        <i class="fas fa-plus"></i> Create New Prescription
+                                                    </a>
+                                                <?php else: ?>
+                                                    <button type="button" class="btn btn-sm btn-secondary" disabled>
+                                                        <i class="fas fa-plus"></i> Create New Prescription
+                                                    </button>
+                                                    <small class="text-muted d-block mt-1">Enter a valid patient name first</small>
+                                                <?php endif; ?>
                                             </div>
-                                            <small class="text-muted">Enter the ID of an existing prescription or create a new one</small>
+                                            
+                                            <?php if ($patient_id && empty($patientPrescriptions)): ?>
+                                                <small class="text-muted d-block mt-1">No prescriptions found for this patient. Please create one using the button above.</small>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
 
@@ -462,28 +548,20 @@ $prefill = [
                                     <!-- Upload Images -->
                                     <div class="col-12 col-md-4">
                                         <h2 class="h6 fw-semibold border-bottom pb-1 mb-3">Upload Images</h2>
-                                        <div class="mb-2">
-                                            <label class="form-label small fw-semibold">Upload</label>
+                                        <div class="mb-3">
+                                            <label for="imageUpload" class="form-label small fw-semibold">Upload Image</label>
+                                            <input type="file" class="form-control form-control-sm" id="imageUpload" name="image_file" accept="image/*">
+                                            <small class="text-muted">Supported formats: JPEG, PNG, GIF</small>
                                         </div>
-                                        <div class="border border-secondary border-dashed rounded d-flex flex-column justify-content-center align-items-center text-center p-3"
-                                            style="height: 12rem; font-size: 0.6rem;">
-                                            <img src="https://storage.googleapis.com/a1aa/image/842b36c6-ae8a-4806-7721-12ea72f59983.jpg"
-                                                width="24" height="24" class="mb-1" alt="Cloud upload icon">
-                                            <p>
-                                                Drag & drop files or <span class="text-primary fw-semibold"
-                                                    style="cursor: pointer;">Browse</span>
-                                            </p>
-                                            <p class="mt-1">Supported formats: JPEG, PNG, GIF, WMV, PDF, PSD, AI, Word, PPT</p>
+                                        <div id="imagePreview" class="my-2" style="display: none;">
+                                            <p class="small mb-1">Selected Image Preview:</p>
+                                            <img id="previewImg" class="img-thumbnail" style="max-height: 150px;" alt="Preview">
                                         </div>
-                                        <button type="button"
-                                            class="btn btn-blue hover-blue btn-sm w-100 mt-3 fw-semibold">UPLOAD FILES</button>
-                                        <button type="button"
-                                            class="btn btn-blue1 hover-blue btn-sm w-100 mt-2 fw-semibold">DELETE FILE</button>
                                         <div class="d-flex align-items-center mt-2 gap-2">
                                             <button type="submit" class="btn btn-sm btn-blue hover-blue fw-semibold">
                                                 Save
                                             </button>
-                                            <a href="medicalrecord.php" class="btn btn-fade text-white hover-blue" style="font-size: 12px;">
+                                            <a href="javascript:history.back()" class="btn btn-fade text-white hover-blue" style="font-size: 12px;">
                                                 <i class="fas fa-arrow-left"></i> Back to Records
                                             </a>
                                         </div>
@@ -551,6 +629,49 @@ $prefill = [
     <!-- Page level custom scripts -->
     <script src="js/demo/chart-area-demo.js"></script>
     <script src="js/demo/chart-pie-demo.js"></script>
+
+    <script>
+    document.getElementById('patientName').addEventListener('change', function() {
+        // Get the patient name
+        const patientName = this.value;
+        
+        // Submit the form with a special flag to just update the prescriptions dropdown
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = window.location.href;
+        
+        const nameInput = document.createElement('input');
+        nameInput.type = 'hidden';
+        nameInput.name = 'patient_name';
+        nameInput.value = patientName;
+        
+        const refreshInput = document.createElement('input');
+        refreshInput.type = 'hidden';
+        refreshInput.name = 'refresh_prescriptions';
+        refreshInput.value = '1';
+        
+        form.appendChild(nameInput);
+        form.appendChild(refreshInput);
+        document.body.appendChild(form);
+        form.submit();
+    });
+    </script>
+
+    <script>
+    document.getElementById('imageUpload').addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('previewImg').src = e.target.result;
+                document.getElementById('imagePreview').style.display = 'block';
+            }
+            reader.readAsDataURL(file);
+        } else {
+            document.getElementById('imagePreview').style.display = 'none';
+        }
+    });
+    </script>
 
 </body>
 

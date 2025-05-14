@@ -1,3 +1,24 @@
+<?php
+require_once '../backend/config/database.php';
+require_once '../backend/models/MedicalRecord.php';
+require_once '../backend/models/Patient.php';
+require_once '../backend/models/Staff.php';
+
+// Initialize database connection
+$database = getDbConnection();
+$medicalRecordModel = new MedicalRecord($database);
+$patientModel = new Patient($database);
+$staffModel = new Staff($database);
+
+// Get all medical records
+try {
+    $medicalRecords = $medicalRecordModel->getAll();
+} catch (Exception $e) {
+    $error = $e->getMessage();
+    $medicalRecords = [];
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -9,7 +30,7 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>DermaGrid - Dashboard</title>
+    <title>DermaGrid - Medical Records</title>
 
     <!-- Custom fonts for this template-->
     <link href="vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
@@ -55,17 +76,6 @@
             border: 1px solid #4a73df;
         }
     </style>
-
-    <style>
-        textarea::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        textarea::-webkit-scrollbar-thumb {
-            background-color: #d1d5db;
-            border-radius: 3px;
-        }
-    </style>
 </head>
 
 <body id="page-top">
@@ -88,7 +98,7 @@
             <hr class="sidebar-divider my-0">
 
             <!-- Nav Item - Dashboard -->
-            <li class="nav-item active">
+            <li class="nav-item">
                 <a class="nav-link" href="dashboard.php">
                     <i class="fas fa-fw fa-tachometer-alt"></i>
                     <span>Dashboard</span></a>
@@ -103,7 +113,7 @@
             </div>
 
             <!-- Nav Item - Charts -->
-            <li class="nav-item">
+            <li class="nav-item active">
                 <a class="nav-link" href="appointments.php">
                     <i class="bi bi-person"></i>
                     <span>Appointments</span></a>
@@ -151,16 +161,16 @@
 
                     <!-- Page Heading -->
                     <div class="d-sm-flex align-items-center justify-content-center">
-                        <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
+                        <h1 class="h3 mb-0 text-gray-800">Medical Records</h1>
                     </div>
 
                     <!-- Topbar Search -->
                     <form class="d-none d-sm-inline-block form-inline ml-auto my-2 my-md-0 mw-100 navbar-search">
                         <div class="input-group">
-                            <input type="text" class="form-control bg-light border-0 small" placeholder="Search for..."
-                                aria-label="Search" aria-describedby="basic-addon2">
+                            <input type="text" class="form-control bg-light border-0 small" placeholder="Search records..."
+                                aria-label="Search" aria-describedby="basic-addon2" id="searchInput">
                             <div class="input-group-append">
-                                <button class="btn btn-primary" type="button">
+                                <button class="btn btn-primary" type="button" onclick="searchRecords()">
                                     <i class="fas fa-search fa-sm"></i>
                                 </button>
                             </div>
@@ -219,28 +229,6 @@
                                         <span class="font-weight-bold">A new monthly report is ready to download!</span>
                                     </div>
                                 </a>
-                                <a class="dropdown-item d-flex align-items-center" href="#">
-                                    <div class="mr-3">
-                                        <div class="icon-circle bg-success">
-                                            <i class="fas fa-donate text-white"></i>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="small text-gray-500">December 7, 2019</div>
-                                        $290.29 has been deposited into your account!
-                                    </div>
-                                </a>
-                                <a class="dropdown-item d-flex align-items-center" href="#">
-                                    <div class="mr-3">
-                                        <div class="icon-circle bg-warning">
-                                            <i class="fas fa-exclamation-triangle text-white"></i>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="small text-gray-500">December 2, 2019</div>
-                                        Spending Alert: We've noticed unusually high spending for your account.
-                                    </div>
-                                </a>
                                 <a class="dropdown-item text-center small text-gray-500" href="#">Show All Alerts</a>
                             </div>
                         </li>
@@ -251,23 +239,14 @@
                         <li class="nav-item dropdown no-arrow">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">Douglas McGee</span>
                                 <img class="img-profile rounded-circle" src="img/undraw_profile.svg">
                             </a>
                             <!-- Dropdown - User Information -->
                             <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
                                 aria-labelledby="userDropdown">
-                                <a class="dropdown-item" href="#">
+                                <a class="dropdown-item" href="profile.php">
                                     <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>
                                     Profile
-                                </a>
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-cogs fa-sm fa-fw mr-2 text-gray-400"></i>
-                                    Settings
-                                </a>
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-list fa-sm fa-fw mr-2 text-gray-400"></i>
-                                    Activity Log
                                 </a>
                                 <div class="dropdown-divider"></div>
                                 <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
@@ -291,43 +270,66 @@
                         <!-- Content Column -->
                         <div class="col">
                             <div class="p-4">
-                                <p class="small text-black fw-semibold border-bottom border-black pb-2 mb-3">Medical Records</p>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <p class="small text-black fw-semibold border-bottom border-black pb-2 mb-0">Medical Records</p>
+                                    <a href="addmedicalrecords.php" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-plus"></i> Add New Record
+                                    </a>
+                                </div>
 
-                                <?php
-                                $file = "medical_data.txt";
+                                <?php if (isset($error)): ?>
+                                    <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+                                <?php endif; ?>
 
-                                if (file_exists($file)) {
-                                    $records = file($file, FILE_IGNORE_NEW_LINES);
-                                    if (count($records) > 0) {
-                                        echo '<div class="d-flex flex-column gap-2">';
-                                        foreach ($records as $index => $record) {
-                                            // Extract Diagnosis
-                                            preg_match('/Diagnosis:\s*(.*?)\s*\|/', $record . ' |', $matches);
-                                            $diagnosis = $matches[1] ?? 'Unknown Diagnosis';
-
-                                            echo '
-                                            <a href="viewmedical.php?record=' . $index . '" style="text-decoration: none;">
+                                <?php if (empty($medicalRecords)): ?>
+                                    <p>No medical records found.</p>
+                                <?php else: ?>
+                                    <div class="d-flex flex-column gap-2" id="recordsList">
+                                        <?php foreach ($medicalRecords as $record): ?>
+                                            <?php
+                                            // Get patient name from patient_id
+                                            $patientName = "Unknown Patient";
+                                            if (!empty($record['patient_id'])) {
+                                                try {
+                                                    $stmt = $database->prepare("SELECT CONCAT(first_name, ' ', last_name) AS name FROM patient WHERE id = ?");
+                                                    $stmt->execute([$record['patient_id']]);
+                                                    $patient = $stmt->fetch(PDO::FETCH_ASSOC);
+                                                    if ($patient) {
+                                                        $patientName = $patient['name'];
+                                                    }
+                                                } catch (Exception $e) {
+                                                    // Silently fail
+                                                }
+                                            }
+                                            
+                                            // Get diagnosis or use a placeholder
+                                            $diagnosis = $record['diagnosis'] ?? 'No diagnosis';
+                                            $visitDate = $record['visit_date'] ?? $record['created_at'] ?? 'Unknown date';
+                                            if (is_string($visitDate)) {
+                                                $visitDate = date('M d, Y', strtotime($visitDate));
+                                            }
+                                            ?>
+                                            <a href="viewmedical.php?record=<?= $record['id'] ?>" style="text-decoration: none;">
                                                 <button type="button"
-                                                    class="btn-blue hover-blue d-flex align-items-center p-3 border-0 w-100 text-start"
+                                                    class="btn-blue hover-blue d-flex align-items-center p-3 border-0 w-100 text-start record-item"
                                                     style="cursor: pointer;">
                                                     <div class="d-flex justify-content-center align-items-center bg-secondary me-3"
                                                         style="width: 40px; height: 40px;">
-                                                        <img src="https://storage.googleapis.com/a1aa/image/e859548d-40b7-4237-dafc-f172c8de247a.jpg"
-                                                            alt="Prescription icon" width="16" height="16" />
+                                                        <i class="fas fa-file-medical text-white"></i>
                                                     </div>
-                                                    <p class="mb-0 text-white small flex-grow-1">' . htmlspecialchars($diagnosis) . '</p>
+                                                    <div class="text-white small flex-grow-1">
+                                                        <div class="fw-bold"><?= htmlspecialchars($diagnosis) ?></div>
+                                                        <div class="small opacity-75">
+                                                            Patient: <?= htmlspecialchars($patientName) ?> | 
+                                                            Date: <?= htmlspecialchars($visitDate) ?>
+                                                        </div>
+                                                    </div>
                                                     <i class="fas fa-chevron-right text-white"></i>
                                                 </button>
-                                            </a>';
-                                        }
-                                        echo '</div>';
-                                    } else {
-                                        echo "<p>No medical records found.</p>";
-                                    }
-                                } else {
-                                    echo "<p>No medical records file found.</p>";
-                                }
-                                ?>
+                                            </a>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                         </div>
 
@@ -339,16 +341,6 @@
 
         </div>
         <!-- End of Main Content -->
-
-        <!-- Footer -->
-        <!-- <footer class="sticky-footer bg-white">
-        <div class="container my-auto">
-            <div class="copyright text-center my-auto">
-                <span>Copyright &copy; Your Website 2021</span>
-            </div>
-        </div>
-    </footer> -->
-        <!-- End of Footer -->
 
     </div>
     <!-- End of Content Wrapper -->
@@ -391,12 +383,27 @@
     <!-- Custom scripts for all pages-->
     <script src="js/sb-admin-2.min.js"></script>
 
-    <!-- Page level plugins -->
-    <script src="vendor/chart.js/Chart.min.js"></script>
-
-    <!-- Page level custom scripts -->
-    <script src="js/demo/chart-area-demo.js"></script>
-    <script src="js/demo/chart-pie-demo.js"></script>
+    <!-- Search functionality -->
+    <script>
+        function searchRecords() {
+            const searchInput = document.getElementById('searchInput').value.toLowerCase();
+            const records = document.querySelectorAll('.record-item');
+            
+            records.forEach(record => {
+                const text = record.textContent.toLowerCase();
+                const parent = record.parentElement;
+                
+                if (text.includes(searchInput)) {
+                    parent.style.display = 'block';
+                } else {
+                    parent.style.display = 'none';
+                }
+            });
+        }
+        
+        // Search as you type
+        document.getElementById('searchInput').addEventListener('keyup', searchRecords);
+    </script>
 
 </body>
 

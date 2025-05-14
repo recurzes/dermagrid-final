@@ -2,38 +2,76 @@
 // Initialize the session
 // session_start();
 
-// // Check if the user is logged in, if not then redirect to login page
-// if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true) {
-//     header("location: login.php");
-//     exit;
-// }
-?>
+// Basic error reporting to see any issues
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-<?php
-$doctors = [];
 require_once '../backend/config/database.php';
-require_once '../backend/models/Appointment.php';
 
+// Get database connection
 $database = getDbConnection();
-$appointment = new Appointment($database);
-$appointments = $appointment->getAll();
-$appointment_stats = $appointment->getAppointmentStats();
 
-//if (file_exists('doctors.txt')) {
-//    $lines = file('doctors.txt', FILE_IGNORE_NEW_LINES);
-//
-//    foreach ($lines as $line) {
-//        $fields = explode('|', $line);
-//
-//        if (count($fields) >= 10) {
-//            $appointments[] = [
-//                'name' => trim($fields[0]) . ' ' . trim($fields[1])
-//            ];
-//        }
-//    }
-//}
+// Direct SQL query to debug
+$staffSchedules = [];
+try {
+    // Simple direct SQL query
+    $sql = "SELECT id, first_name, last_name, role FROM staff";
+    $stmt = $database->prepare($sql);
+    $stmt->execute();
+    
+    $count = $stmt->rowCount();
+    echo "<!-- Found $count staff members -->";
+    
+    // Fetch the results
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Process each staff member
+    foreach ($results as $row) {
+        $name = $row['first_name'] . ' ' . $row['last_name'];
+        $role = $row['role'];
+        
+        // Determine schedule based on role
+        $schedule = 'Mon-Fri, 9:00 AM - 6:00 PM'; // Default
+        if ($role == 'doctor') {
+            $schedule = 'Mon-Fri, 8:00 AM - 5:00 PM';
+        } elseif ($role == 'nurse') {
+            $schedule = 'Mon-Sat, 7:00 AM - 4:00 PM';
+        }
+        
+        // Add to staff schedules
+        $staffSchedules[] = [
+            'name' => $name,
+            'expertise' => ucfirst($role),
+            'working_days' => $schedule
+        ];
+    }
+} catch (PDOException $e) {
+    echo "<!-- Database error: " . $e->getMessage() . " -->";
+    
+    // Fallback data if query fails
+    $staffSchedules = [
+        [
+            'name' => 'Dr. Smith (Fallback)', 
+            'expertise' => 'Doctor',
+            'working_days' => 'Mon-Fri, 8:00 AM - 5:00 PM'
+        ],
+        [
+            'name' => 'Nurse Johnson (Fallback)', 
+            'expertise' => 'Nurse',
+            'working_days' => 'Mon-Sat, 7:00 AM - 4:00 PM'
+        ]
+    ];
+}
+
+// Debug output
+echo "<!-- Staff data: " . json_encode($staffSchedules) . " -->";
+
+// Now load the models for appointments
+require_once '../backend/models/Appointment.php';
+$appointmentModel = new Appointment($database);
+$appointments = $appointmentModel->getAll();
+$appointment_stats = $appointmentModel->getAppointmentStats();
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -60,6 +98,20 @@ $appointment_stats = $appointment->getAppointmentStats();
         .table-clickable tbody tr {
             cursor: pointer;
             transition: all 0.25s ease-in-out;
+        }
+        
+        /* Disable search bar and notification button */
+        .navbar-search input, 
+        .navbar-search button {
+            pointer-events: none;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        #alertsDropdown {
+            pointer-events: none;
+            opacity: 0.6;
+            cursor: not-allowed;
         }
     </style>
 
@@ -141,9 +193,9 @@ $appointment_stats = $appointment->getAppointmentStats();
                     <form class="d-none d-sm-inline-block form-inline ml-auto my-2 my-md-0 mw-100 navbar-search">
                         <div class="input-group">
                             <input type="text" class="form-control bg-light border-0 small" placeholder="Search for..."
-                                aria-label="Search" aria-describedby="basic-addon2">
+                                aria-label="Search" aria-describedby="basic-addon2" disabled>
                             <div class="input-group-append">
-                                <button class="btn btn-primary" type="button">
+                                <button class="btn btn-primary" type="button" disabled>
                                     <i class="fas fa-search fa-sm"></i>
                                 </button>
                             </div>
@@ -165,9 +217,9 @@ $appointment_stats = $appointment->getAppointmentStats();
                                     <div class="input-group">
                                         <input type="text" class="form-control bg-light border-0 small"
                                             placeholder="Search for..." aria-label="Search"
-                                            aria-describedby="basic-addon2">
+                                            aria-describedby="basic-addon2" disabled>
                                         <div class="input-group-append">
-                                            <button class="btn btn-primary" type="button">
+                                            <button class="btn btn-primary" type="button" disabled>
                                                 <i class="fas fa-search fa-sm"></i>
                                             </button>
                                         </div>
@@ -178,8 +230,7 @@ $appointment_stats = $appointment->getAppointmentStats();
 
                         <!-- Nav Item - Alerts -->
                         <li class="nav-item dropdown no-arrow mx-1">
-                            <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <a class="nav-link dropdown-toggle disabled" href="javascript:void(0);" id="alertsDropdown">
                                 <i class="fas fa-bell fa-fw"></i>
                                 <!-- Counter - Alerts -->
                                 <span class="badge badge-danger badge-counter">3+</span>
@@ -402,47 +453,24 @@ $appointment_stats = $appointment->getAppointmentStats();
                                                             <th>Working Days</th>
                                                         </tr>
                                                     </thead>
-                                                    <!-- <tfoot>
-                                                        <tr>
-                                                            <th>#</th>
-                                                            <th>Name</th>
-                                                            <th>Expertise</th>
-                                                            <th>Working Days</th>
-                                                        </tr>
-                                                    </tfoot> -->
                                                     <tbody>
-                                                        <!-- code here -->
-                                                        <!-- <?php
-                                                                if ($result && $result->num_rows > 0) {
-                                                                    $counter = 1;
-                                                                    while ($row = $result->fetch_assoc()) {
-                                                                        $name = htmlspecialchars($row['name']);
-                                                                        $expertise = htmlspecialchars($row['expertise']);
-                                                                        $workingDays = htmlspecialchars($row['working_days']);
-
-                                                                        echo "<tr>";
-                                                                        echo "<th>{$counter}</th>";
-                                                                        echo "<td>{$name}</td>";
-                                                                        echo "<td>{$expertise}</td>";
-                                                                        echo "<td>{$workingDays}</td>";
-                                                                        echo "</tr>";
-
-                                                                        $counter++;
-                                                                    }
-                                                                } else {
-                                                                    echo "<tr><td colspan='4' class='text-center'>No employees found.</td></tr>";
-                                                                }
-                                                                ?> -->
-                                                        <?php if (!empty($doctors)): ?>
-                                                            <?php foreach ($doctrs as $index => $a): ?>
-                                                                <tr class="clickable-row" onclick="window.location='doctors&staff.php?contact=<?= urlencode($a['number']) ?>'">
+                                                        <?php if (!empty($staffSchedules)): ?>
+                                                            <?php foreach ($staffSchedules as $index => $staff): ?>
+                                                                <tr>
                                                                     <td><?= $index + 1 ?></td>
-                                                                    <td><?= htmlspecialchars($a['name']) ?></td>
+                                                                    <td><?= htmlspecialchars($staff['name']) ?></td>
+                                                                    <td><?= htmlspecialchars($staff['expertise']) ?></td>
+                                                                    <td><?= htmlspecialchars($staff['working_days']) ?></td>
                                                                 </tr>
                                                             <?php endforeach; ?>
                                                         <?php else: ?>
                                                             <tr>
-                                                                <td colspan="7" class="text-center text-muted">No appointments found.</td>
+                                                                <td colspan="4" class="text-center text-muted">
+                                                                    No staff records found in database.
+                                                                    <?php if (isset($count)): ?>
+                                                                        SQL query returned <?= $count ?> records.
+                                                                    <?php endif; ?>
+                                                                </td>
                                                             </tr>
                                                         <?php endif; ?>
                                                     </tbody>
@@ -490,7 +518,7 @@ $appointment_stats = $appointment->getAppointmentStats();
                 <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
-                    <a class="btn btn-primary" href="login.html">Logout</a>
+                    <a class="btn btn-primary" href="login.php">Logout</a>
                 </div>
             </div>
         </div>

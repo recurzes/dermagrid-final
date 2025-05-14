@@ -4,7 +4,7 @@ require_once '../backend/models/Appointment.php';
 
 $database = getDbConnection();
 $appointment = new Appointment($database);
-$appointments = $appointment->getAll();
+$appointments = $appointment->getAll("scheduled");
 $appointment_stats = $appointment->getAppointmentStats();
 ?>
 
@@ -48,7 +48,7 @@ $appointment_stats = $appointment->getAppointmentStats();
     <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
 
         <!-- Sidebar - Brand -->
-        <a class="sidebar-brand d-flex align-items-center" href="dashboard.html">
+        <a class="sidebar-brand d-flex align-items-center" href="dashboard.php">
             <div class="sidebar-brand-text">DermaGrid</div>
         </a>
 
@@ -408,7 +408,7 @@ $appointment_stats = $appointment->getAppointmentStats();
             <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
-                <a class="btn btn-primary" href="login.html">Logout</a>
+                <a class="btn btn-primary" href="login.php">Logout</a>
             </div>
         </div>
     </div>

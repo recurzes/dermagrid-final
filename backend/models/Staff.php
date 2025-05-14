@@ -139,4 +139,41 @@ class Staff
             throw new Exception("Error searching staff: " . $e->getMessage());
         }
     }
+    public function getStaffSchedule()
+    {
+        try {
+            // Get all staff members
+            $query = "SELECT * FROM staff ORDER BY role, last_name";
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute();
+
+            $staffSchedules = [];
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                // Format the data
+                $staffSchedules[] = [
+                    'id' => $row['id'],
+                    'name' => $row['first_name'] . ' ' . $row['last_name'],
+                    'expertise' => ucfirst($row['role']),
+                    'working_days' => $this->getWorkingDaysForRole($row['role'])
+                ];
+            }
+
+            return $staffSchedules;
+        } catch (PDOException $e) {
+            error_log("Error fetching staff schedules: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    private function getWorkingDaysForRole($role)
+    {
+        switch (strtolower($role)) {
+            case 'doctor':
+                return 'Mon-Fri, 8:00 AM - 5:00 PM';
+            case 'nurse':
+                return 'Mon-Sat, 7:00 AM - 4:00 PM';
+            default:
+                return 'Mon-Fri, 9:00 AM - 6:00 PM';
+        }
+    }
 }

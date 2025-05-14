@@ -12608,3 +12608,24 @@ footer.sticky-footer .copyright {
 body.sidebar-toggled footer.sticky-footer {
     width: 100%
 }
+
+.navbar-search input,
+.navbar-search button,
+.form-inline.mr-auto.w-100.navbar-search input,
+.form-inline.mr-auto.w-100.navbar-search button {
+    pointer-events: none;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#searchDropdown,
+#alertsDropdown {
+    pointer-events: none;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.nav-item.dropdown.no-arrow.mx-1 .dropdown-menu,
+.nav-item.dropdown.no-arrow.d-sm-none .dropdown-menu {
+    display: none !important;
+}

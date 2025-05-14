@@ -1,63 +1,40 @@
 <?php
+require_once '../backend/config/database.php';
+require_once '../backend/models/Prescription.php';
+
 $record_id = isset($_GET['record']) ? (int)$_GET['record'] : -1;
-$file = "prescriptions.txt";
+$parsed = [];
 
-$parsed = [
-    'patient_name' => '',
-    'contact' => '',
-    'doctor' => '',
-    'appointment_date' => '',
-    'medicine_type' => '',
-    'medicine_name' => '',
-    'generic_name' => '',
-    'dosage' => '',
-    'frequency' => '',
-    'duration' => '',
-    'instructions' => '',
-    'saved_on' => '',
-];
+// Initialize database connection and models
+$database = getDbConnection();
+$prescriptionModel = new Prescription($database);
 
-if ($record_id >= 0 && file_exists($file)) {
-    $records = file($file, FILE_IGNORE_NEW_LINES);
-    if (isset($records[$record_id])) {
-        $line = $records[$record_id];
-
-        preg_match('/Patient:\s*(.*?)\s*\|/', $line . ' |', $m1);
-        $parsed['patient_name'] = $m1[1] ?? '';
-
-        preg_match('/Contact:\s*(.*?)\s*\|/', $line . ' |', $m2);
-        $parsed['contact'] = $m2[1] ?? '';
-
-        preg_match('/Doctor:\s*(.*?)\s*\|/', $line . ' |', $m3);
-        $parsed['doctor'] = $m3[1] ?? '';
-
-        preg_match('/Appointment Date:\s*(.*?)\s*\|/', $line . ' |', $m4);
-        $parsed['appointment_date'] = $m4[1] ?? '';
-
-        preg_match('/Medicine Type:\s*(.*?)\s*\|/', $line . ' |', $m5);
-        $parsed['medicine_type'] = $m5[1] ?? '';
-
-        preg_match('/Medicine Name:\s*(.*?)\s*\|/', $line . ' |', $m6);
-        $parsed['medicine_name'] = $m6[1] ?? '';
-
-        preg_match('/Generic Name:\s*(.*?)\s*\|/', $line . ' |', $m7);
-        $parsed['generic_name'] = $m7[1] ?? '';
-
-        preg_match('/Dosage:\s*(.*?)\s*\|/', $line . ' |', $m8);
-        $parsed['dosage'] = $m8[1] ?? '';
-
-        preg_match('/Frequency:\s*(.*?)\s*\|/', $line . ' |', $m9);
-        $parsed['frequency'] = $m9[1] ?? '';
-
-        preg_match('/Duration:\s*(.*?)\s*\|/', $line . ' |', $m10);
-        $parsed['duration'] = $m10[1] ?? '';
-
-        preg_match('/Additional Instructions:\s*(.*?)\s*\|/', $line . ' |', $m11);
-        $parsed['instructions'] = $m11[1] ?? '';
-
-        preg_match('/Saved On:\s*(.*)/', $line, $m12);
-        $parsed['saved_on'] = $m12[1] ?? '';
+// Fetch prescription from database
+try {
+    $prescription = $prescriptionModel->getById($record_id);
+    
+    if (!$prescription) {
+        // Prescription not found
+        $error = "Prescription not found";
+    } else {
+        // Use data from database
+        $parsed = [
+            'patient_name' => $prescription['patient_name'] ?? '',
+            'contact' => $prescription['contact_number'] ?? '',
+            'doctor' => $prescription['doctor_name'] ?? '',
+            'appointment_date' => $prescription['appointment_date'] ?? '',
+            'medicine_type' => $prescription['medicine_type'] ?? '',
+            'medicine_name' => $prescription['medication_name'] ?? '',
+            'generic_name' => $prescription['generic_name'] ?? '',
+            'dosage' => $prescription['dosage'] ?? '',
+            'frequency' => $prescription['frequency'] ?? '',
+            'duration' => $prescription['duration'] ?? '',
+            'instructions' => $prescription['instructions'] ?? '',
+            'saved_on' => $prescription['created_at'] ?? '',
+        ];
     }
+} catch (Exception $e) {
+    $error = $e->getMessage();
 }
 ?>
 
