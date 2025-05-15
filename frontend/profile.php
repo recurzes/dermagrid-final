@@ -1,48 +1,50 @@
 <?php
 session_start();
-if (!isset($_SESSION['doctor_email'])) {
+
+// Check if user is logged in - check for any of the possible session IDs
+if (!isset($_SESSION['user_id']) && !isset($_SESSION['staff_id']) && 
+    !isset($_SESSION['id']) && !isset($_SESSION['doctor_id'])) {
     header('Location: login.php');
     exit;
 }
 
-$email = $_SESSION['doctor_email'];
-$doctor = null;
+// Get the appropriate ID from session
+$user_id = $_SESSION['user_id'] ?? $_SESSION['staff_id'] ?? $_SESSION['id'] ?? $_SESSION['doctor_id'] ?? null;
 
-// Load doctor data from file
-if (file_exists('doctors.txt')) {
-    $lines = file('doctors.txt', FILE_IGNORE_NEW_LINES);
-    foreach ($lines as $line) {
-        $fields = explode('|', $line);
-        if (trim($fields[4]) === $email) {
-            $doctor = [
-                'first_name' => trim($fields[0]),
-                'last_name' => trim($fields[1]),
-                'gender' => trim($fields[3]),
-                'address' => trim($fields[5]),
-                'email' => trim($fields[4])
-            ];
-            break;
+// Include database connection and model files
+require_once __DIR__ . '/../backend/config/database.php';
+require_once __DIR__ . '/../backend/models/Staff.php';
+
+$database = getDbConnection();
+$staffModel = new Staff($database);
+
+// Get user profile from database
+try {
+    $user = $staffModel->getById($user_id);
+    
+    // Handle form submission for profile update
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $first_name = $_POST['first_name'] ?? '';
+        $last_name = $_POST['last_name'] ?? '';
+        $gender = $_POST['gender'] ?? '';
+        $address = $_POST['address'] ?? '';
+        
+        // Update user profile in database
+        $result = $staffModel->updateProfile($user_id, [
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'gender' => $gender,
+            'address' => $address
+        ]);
+        
+        if ($result) {
+            // Refresh user data after update
+            $user = $staffModel->getById($user_id);
         }
     }
-}
-
-// Save updated profile
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $updated = [];
-    foreach ($lines as $line) {
-        $fields = explode('|', $line);
-        if (trim($fields[4]) === $email) {
-            $fields[0] = $_POST['first_name'];
-            $fields[1] = $_POST['last_name'];
-            $fields[3] = $_POST['gender'];
-            $fields[5] = $_POST['address'];
-            $line = implode('|', $fields);
-        }
-        $updated[] = $line;
-    }
-    file_put_contents('doctors.txt', implode("\n", $updated));
-    header("Location: profile.php");
-    exit;
+} catch (Exception $e) {
+    // Handle error
+    $error = "Error retrieving user profile: " . $e->getMessage();
 }
 ?>
 
@@ -304,7 +306,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <li class="nav-item dropdown no-arrow">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-<!-- code here              <?php echo htmlspecialchars($_SESSION["first_name"]); ?> -->
                                 <img class="img-profile rounded-circle" src="img/undraw_profile.svg">
                             </a>
                             <!-- Dropdown - User Information -->
@@ -345,34 +346,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <div class="bg-white rounded p-4 shadow-sm">
                                     <div class="d-flex justify-content-between align-items-center mb-4">
                                         <div class="d-flex align-items-center">
-                                            <img src="doctor_profile.jpg" alt="Profile picture" class="rounded-circle me-3" width="64" height="64" />
+                                            <img src="img/undraw_profile.svg" alt="Profile picture" class="rounded-circle me-3" width="64" height="64" />
                                             <div>
-                                                <p class="mb-0 fw-semibold"><?= htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']) ?></p>
-                                                <small class="text-muted"><?= htmlspecialchars($doctor['email']) ?></small>
+                                                <p class="mb-0 fw-semibold"><?= isset($user) ? htmlspecialchars($user['first_name'] . ' ' . $user['last_name']) : 'User' ?></p>
+                                                <small class="text-muted"><?= isset($user) ? htmlspecialchars($user['email']) : 'Email not available' ?></small>
                                             </div>
                                         </div>
                                         <button id="editBtn" type="button" class="btn btn-blue hover-blue btn-sm">Edit</button>
                                     </div>
 
+                                    <?php if (isset($error)): ?>
+                                        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+                                    <?php endif; ?>
+
                                     <form method="POST">
                                         <div class="row mb-3">
                                             <div class="col-sm">
                                                 <label for="first_name" class="form-label small fw-semibold">First Name</label>
-                                                <input type="text" class="form-control form-control-sm" id="first_name" name="first_name" value="<?= htmlspecialchars($doctor['first_name']) ?>" readonly>
+                                                <input type="text" class="form-control form-control-sm" id="first_name" name="first_name" 
+                                                    value="<?= isset($user) ? htmlspecialchars($user['first_name']) : '' ?>" readonly>
                                             </div>
                                             <div class="col-sm">
                                                 <label for="last_name" class="form-label small fw-semibold">Last Name</label>
-                                                <input type="text" class="form-control form-control-sm" id="last_name" name="last_name" value="<?= htmlspecialchars($doctor['last_name']) ?>" readonly>
+                                                <input type="text" class="form-control form-control-sm" id="last_name" name="last_name" 
+                                                    value="<?= isset($user) ? htmlspecialchars($user['last_name']) : '' ?>" readonly>
                                             </div>
                                         </div>
                                         <div class="row mb-3">
                                             <div class="col-sm">
                                                 <label for="gender" class="form-label small fw-semibold">Gender</label>
-                                                <input type="text" class="form-control form-control-sm" id="gender" name="gender" value="<?= htmlspecialchars($doctor['gender']) ?>" readonly>
+                                                <input type="text" class="form-control form-control-sm" id="gender" name="gender" 
+                                                    value="<?= isset($user) ? htmlspecialchars($user['gender'] ?? '') : '' ?>" readonly>
                                             </div>
                                             <div class="col-sm">
                                                 <label for="address" class="form-label small fw-semibold">Address</label>
-                                                <input type="text" class="form-control form-control-sm" id="address" name="address" value="<?= htmlspecialchars($doctor['address']) ?>" readonly>
+                                                <input type="text" class="form-control form-control-sm" id="address" name="address" 
+                                                    value="<?= isset($user) ? htmlspecialchars($user['address'] ?? '') : '' ?>" readonly>
                                             </div>
                                         </div>
                                         <button id="saveBtn" type="submit" class="btn btn-blue hover-blue btn-sm d-none">Save Changes</button>
@@ -428,7 +437,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
-                    <a class="btn btn-primary" href="login.php">Logout</a>
+                    <a class="btn btn-primary" href="logout.php">Logout</a>
                 </div>
             </div>
         </div>

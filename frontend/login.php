@@ -2,9 +2,9 @@
 // Initialize the session
 session_start();
 
-// Check if the user is already logged in, if yes then redirect to dashboard
+// Check if the user is already logged in, if yes then redirect to homepage
 if(isset($_SESSION["loggedin"]) && $_SESSION["loggedin"] === true){
-    header("location: dashboard.php");
+    header("location: homepage.php");
     exit;
 }
 
@@ -108,7 +108,7 @@ if(isset($_GET['registered']) && $_GET['registered'] == 'true') {
             font-size: 14px;
         }
 
-        input[type="email"],
+        input[type="text"],
         input[type="password"] {
             width: 100%;
             padding: 12px;
@@ -118,7 +118,7 @@ if(isset($_GET['registered']) && $_GET['registered'] == 'true') {
             font-size: 14px;
         }
 
-        input[type="email"]::placeholder,
+        input[type="text"]::placeholder,
         input[type="password"]::placeholder {
             color: #aaa;
         }
@@ -211,8 +211,8 @@ if(isset($_GET['registered']) && $_GET['registered'] == 'true') {
 
             <form action="/backend/operations/login_process.php" method="post">
                 <div class="form-group">
-                    <label for="email">Email Address</label>
-                    <input type="email" id="email" name="email" placeholder="Placeholder" value="<?php echo $email; ?>" class="<?php echo (!empty($email_err)) ? 'is-invalid' : ''; ?>">
+                    <label for="email">Email/Username</label>
+                    <input type="text" id="email" name="email" placeholder="Enter your email or username" value="<?php echo $email; ?>" class="<?php echo (!empty($email_err)) ? 'is-invalid' : ''; ?>">
                     <?php if (!empty($email_err)): ?>
                         <span style="color: red; font-size: 12px;"><?php echo $email_err; ?></span>
                     <?php endif; ?>
@@ -220,7 +220,7 @@ if(isset($_GET['registered']) && $_GET['registered'] == 'true') {
 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="Placeholder" class="<?php echo (!empty($password_err)) ? 'is-invalid' : ''; ?>">
+                    <input type="password" id="password" name="password" placeholder="Enter your password" class="<?php echo (!empty($password_err)) ? 'is-invalid' : ''; ?>">
                     <?php if (!empty($password_err)): ?>
                         <span style="color: red; font-size: 12px;"><?php echo $password_err; ?></span>
                     <?php endif; ?>

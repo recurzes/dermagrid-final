@@ -29,10 +29,10 @@
                     </div>
                 </div>
                 <div class="in-column-2">
-                    <a href="#" class="btn-outline">
-                        <div>Place</div>
+                    <a href="dashboard.php" class="btn-solid">
+                        <div>Dashboard</div>
                     </a>
-                    <a href="#" class="btn-solid">
+                    <a href="#" class="btn-outline">
                         <div>Place</div>
                     </a>
                     <a href="#" class="btn-outline">
@@ -68,7 +68,7 @@
     <div class="side-bar">
         <div class="sidebar-menu">
             <div class="in-column nav-link mobile">
-                <a href="#" class="text-link white">Dashboard</a>
+                <a href="dashboard.php" class="text-link white">Dashboard</a>
                 <a href="#" class="text-link white">Medical Records</a>
                 <a href="#" class="text-link white">Appointments</a>
             </div>
@@ -88,6 +88,9 @@
                     <div class="in-column btn-2">
                         <a href="book-appointment.php" class="actn-btn">
                             <div>Book Appointment</div>
+                        </a>
+                        <a href="dashboard.php" class="actn-btn" style="margin-left: 10px; background-color: #333;">
+                            <div>Go to Dashboard</div>
                         </a>
                     </div>
                 </div>

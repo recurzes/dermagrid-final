@@ -8,9 +8,9 @@ $_SESSION = array();
 // Destroy the session.
 session_destroy();
  
-// Delete the remember me cookie if it exists
-if (isset($_COOKIE['email'])) {
-    setcookie('email', '', time() - 3600, '/'); // Set expiration to an hour ago
+// If a cookie was set for "remember me", delete it
+if (isset($_COOKIE['login_identifier'])) {
+    setcookie('login_identifier', '', time() - 3600, '/');
 }
  
 // Redirect to login page
